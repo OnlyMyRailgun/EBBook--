@@ -1,0 +1,164 @@
+//
+//  EBBookLocalGroupViewController.m
+//  EBBook
+//
+//  Created by 张 延晋 on 12-9-5.
+//  Copyright (c) 2012年 Ebupt. All rights reserved.
+//
+
+#import "EBBookLocalGroupViewController.h"
+#import "IIViewDeckController.h"
+#import "EBBookLocalContactViewController.h"
+#import "EBBookLocalEditGroupViewController.h"
+#import "ContactData.h"
+
+@interface EBBookLocalGroupViewController ()
+
+@end
+
+@implementation EBBookLocalGroupViewController
+@synthesize groupNameArray;
+@synthesize contactGroup;
+@synthesize editViewControll;
+
+-(void) dealloc{
+    [editViewControll release];
+    [super dealloc];
+}
+
+- (void)loadView {
+    self.tableView = [[[UITableView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 320.0f, 480.0f) style:UITableViewStylePlain] autorelease];
+    
+    [self initGroup];
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    EBBookLocalEditGroupViewController *anotherViewController = [[EBBookLocalEditGroupViewController alloc] initwithGroup:self.contactGroup] ;
+    
+    UINavigationController *navigationlocalController = [[UINavigationController alloc] initWithRootViewController:anotherViewController] ;
+    navigationlocalController.modalTransitionStyle = UIModalTransitionStyleFlipHorizontal;
+    self.editViewControll = navigationlocalController;
+    
+    [navigationlocalController release];
+    
+    self.tableView.tableHeaderView = [[[UIImageView alloc] initWithImage:[UIImage imageNamed:@"files_manager_top"]] autorelease];
+    
+    self.tableView.tableFooterView = [[[UIImageView alloc] initWithImage:[UIImage imageNamed:@"files_manager_bottom_shadow"]] autorelease];
+    
+    self.tableView.backgroundColor = [UIColor scrollViewTexturedBackgroundColor];
+    
+    [self.tableView reloadData];
+}
+
+- (void)viewDidUnload
+{
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+- (void) initGroup
+{
+    self.contactGroup = [ContactData groupArray];
+    
+    groupNameArray = [[NSMutableArray alloc] initWithObjects:@"全体联系人", nil ];
+    for (ABGroup* group in contactGroup) {
+        [groupNameArray addObject:[group name]];
+    }
+}
+
+#pragma mark - Table view data source
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    //#warning Potentially incomplete method implementation.
+    // Return the number of sections.
+    return [groupNameArray count] +1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    //#warning Incomplete method implementation.
+    // Return the number of rows in the section.
+    return 1;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{    
+    UITableViewCellStyle style =  UITableViewCellStyleSubtitle;
+    UITableViewCell *cell;
+    // Configure the cell...
+
+    cell = [tableView dequeueReusableCellWithIdentifier:@"GroupCell"];
+    if(!cell)
+        cell = [[[UITableViewCell alloc] initWithStyle:style reuseIdentifier:@"GroupCell"] autorelease];
+    UIImageView *cellBackgroundView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"files_manager_bg"]];
+    cell.backgroundView = cellBackgroundView;
+    [cellBackgroundView release];
+    
+    if (indexPath.section < [groupNameArray count]) {
+        cell.textLabel.text = [groupNameArray objectAtIndex:indexPath.section];
+        cell.textLabel.backgroundColor = [UIColor clearColor];
+        cell.indentationWidth = 20.0f;
+        cell.indentationLevel = 1;
+        
+        if(indexPath.section == 0)
+            [cell.imageView setImage:[UIImage imageNamed: @"全体员工"]];
+        else
+            [cell.imageView setImage:nil];
+    }
+    else{
+        cell.textLabel.backgroundColor = [UIColor clearColor];
+        cell.textLabel.text = @"群组设置";
+        [cell.imageView setImage:[UIImage imageNamed: @"grounp_management"]];
+    }
+  
+        
+    
+    return cell;
+}
+
+#pragma mark - Table view delegate
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.section < [groupNameArray count]) {
+        return 60;
+    }
+    else
+    {
+        return 50;
+    }
+}
+
+- (NSInteger)tableView:(UITableView *)tableView indentationLevelForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSInteger indentationLevel = 0;
+
+    return indentationLevel;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.section < [groupNameArray count]) {
+        ABGroup *group = nil;
+        if (indexPath.section >= 1) {
+            group = [contactGroup objectAtIndex:indexPath.section-1];
+        }
+        
+        UINavigationController * centerNav = (UINavigationController *)self.viewDeckController.centerController;
+        [((EBBookLocalContactViewController *)[centerNav topViewController]) refreshAction:group];
+    }
+    else
+    {
+        [self presentModalViewController:editViewControll animated:YES];
+    }
+}
+
+@end

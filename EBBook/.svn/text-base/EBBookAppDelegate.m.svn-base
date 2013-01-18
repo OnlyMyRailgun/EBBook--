@@ -1,0 +1,174 @@
+//
+//  EBBookAppDelegate.m
+//  EBBook
+//
+//  Created by Kissshot HeartunderBlade on 12-6-6.
+//  Copyright (c) 2012年 Ebupt. All rights reserved.
+//
+
+#import "EBBookAppDelegate.h"
+#import "ASIFormDataRequest.h"
+#import "IIViewDeckController.h"
+#import "EBBookGroupViewController.h"
+#import "EBBookLocalGroupViewController.h"
+#import "EBBookAccount.h"
+#import "EBBookLocalContactViewController.h"
+#import <MobClick.h>
+#import "EBExT9KeyboardViewController.h"
+#import "ContactData.h"
+
+@implementation EBBookAppDelegate
+
+@synthesize window = _window;
+@synthesize localNamePhoneContact;
+@synthesize localEBContact;
+- (void)dealloc
+{
+    [localEBContact release];
+    [localNamePhoneContact release];
+    [checkUser release];
+    [_window release];
+    [super dealloc];
+}
+
+- (void)openLocalData
+{
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"EBContacts" ofType:@"db"];
+    NSData *responseData = [NSData dataWithContentsOfFile:path];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    
+    NSString *dbFile = [documentsDirectory stringByAppendingPathComponent:@"EBContacts.db"];
+    
+    [responseData writeToFile:dbFile atomically:YES];
+}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
+    // Override point for customization after application launch.
+    self.window.backgroundColor = [UIColor whiteColor];
+    [self.window makeKeyAndVisible];
+    
+    if(addressBook == nil)
+		addressBook = ABAddressBookCreate();
+
+    self.localEBContact = [NSMutableArray array];
+    self.localNamePhoneContact = [NSMutableArray array];
+    
+    [self reloadLocalContacts];
+
+
+    //中间View
+    EBBookContactBookViewController *contactBookViewController = [[EBBookContactBookViewController alloc] initWithNibName:@"EBBookContactBookViewController" bundle:nil];
+    
+    // Add create and configure the navigation controller.
+	UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:contactBookViewController];
+    checkUser = [[EBBookAccount alloc] init];
+    checkUser.callbackViewController = contactBookViewController;
+    [contactBookViewController release];
+    [navigationController.navigationBar setBarStyle:UIBarStyleBlack];
+
+    //本地
+    EBBookLocalContactViewController *localContactViewController = [[EBBookLocalContactViewController alloc] initWithNibName:@"EBBookLocalContactViewController" bundle:nil];
+    
+    UINavigationController *navigationlocalController = [[UINavigationController alloc] initWithRootViewController:localContactViewController];
+    [localContactViewController release];
+    [navigationlocalController.navigationBar setBarStyle:UIBarStyleBlack];
+    
+    //左侧View
+    EBBookGroupViewController *groupViewController = [[EBBookGroupViewController alloc] init];
+    EBBookLocalGroupViewController *localGroupViewController = [[EBBookLocalGroupViewController alloc] init];
+    
+    //deckView
+    IIViewDeckController *deckController = [[IIViewDeckController alloc] initWithCenterViewController:navigationController leftViewController:groupViewController];
+    deckController.centerhiddenInteractivity = IIViewDeckCenterHiddenNotUserInteractiveWithTapToClose;
+    deckController.leftLedge = 132;
+
+    //deckView
+    IIViewDeckController *localDeckController = [[IIViewDeckController alloc] initWithCenterViewController:navigationlocalController leftViewController:localGroupViewController];
+    localDeckController.centerhiddenInteractivity = IIViewDeckCenterHiddenNotUserInteractiveWithTapToClose;
+    localDeckController.leftLedge = 132;
+    
+    //T9
+    EBExT9KeyboardViewController *exT9ViewController = [[EBExT9KeyboardViewController alloc] initWithNibName:@"EBExT9KeyboardViewController" bundle:nil];
+    
+    //tabbar
+    UITabBarItem *firstTabItem = [[UITabBarItem alloc] initWithTitle:@"员工信息浏览" image:[UIImage imageNamed:@"tab_me_nor"] tag:0];
+    deckController.tabBarItem = firstTabItem;
+    [firstTabItem release];
+    
+    UITabBarItem *secondTabItem = [[UITabBarItem alloc] initWithTitle:@"本地通讯录信息浏览" image:[UIImage imageNamed:@"tab_me_nor"] tag:1];
+    localDeckController.tabBarItem = secondTabItem;
+    [secondTabItem release];
+
+    
+    UITabBarItem *thirdTabItem = [[UITabBarItem alloc] initWithTitle:@"T9拨号搜索" image:[UIImage imageNamed:@"tab_search"] tag:2];
+    exT9ViewController.tabBarItem = thirdTabItem;
+    [thirdTabItem release];
+
+    UITabBarController *mainTabController = [[UITabBarController alloc] init];
+    NSArray *threeViewControllers = [[NSArray alloc]
+                                   initWithObjects: deckController, localDeckController , exT9ViewController, nil];
+    [exT9ViewController release];
+    [mainTabController setViewControllers:threeViewControllers];
+    [threeViewControllers release];
+    
+    [mainTabController setSelectedIndex:[[[EBBookAccount loadDefaultAccount] objectForKey:@"defaultTab"] intValue]];
+   
+    //rootView
+    self.window.rootViewController = mainTabController;
+    
+    [navigationlocalController release];
+    [localGroupViewController release];
+    [navigationController release];
+    [groupViewController release];
+    [localDeckController release];
+    [deckController release];
+    [mainTabController release];
+    
+    [MobClick startWithAppkey:@"4ff2a8125270153a270000c8" reportPolicy:REALTIME channelId:nil];
+    [MobClick setLogEnabled:YES];
+    [MobClick setCrashReportEnabled:YES];
+ 
+    return YES;
+}
+
+- (void)applicationWillResignActive:(UIApplication *)application
+{
+    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
+    // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+}
+
+- (void)applicationDidEnterBackground:(UIApplication *)application
+{
+    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later. 
+    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    if(![[EBBookAccount loadDefaultAccount] objectForKey:@"userName"])
+        exit(0);
+}
+
+- (void)applicationWillEnterForeground:(UIApplication *)application
+{
+    // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
+}
+
+- (void)applicationDidBecomeActive:(UIApplication *)application
+{
+    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    [checkUser checkUserActive];
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application
+{
+    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    CFRelease(addressBook);
+}
+
+-(void)reloadLocalContacts{
+    [localEBContact removeAllObjects];
+    [localNamePhoneContact removeAllObjects];
+    
+    [EBBookLocalContactViewController initDataForAllGroup:self.localEBContact contactArray:self.localNamePhoneContact];
+}
+@end

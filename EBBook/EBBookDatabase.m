@@ -1,0 +1,165 @@
+//
+//  EBBookDatabase.m
+//  EBBook
+//
+//  Created by Kissshot HeartunderBlade on 12-6-14.
+//  Copyright (c) 2012年 Ebupt. All rights reserved.
+//
+
+#import "EBBookDatabase.h"
+#import "FMDatabase.h"
+#import "FMDatabaseAdditions.h"
+
+@interface EBBookDatabase()
+{
+    FMDatabase *db;
+}
+
+@end
+
+@implementation EBBookDatabase
+
+- (void)openDB
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);  
+    NSString *documentDirectory = [paths objectAtIndex:0];  
+    //dbPath： 数据库路径，在Document中。  
+    NSString *dbPath = [documentDirectory stringByAppendingPathComponent:@"EBContacts.db"];  
+    
+    db = [FMDatabase databaseWithPath:dbPath];
+    if (![db open]) {  
+        NSLog(@"Could not open db.");
+        [db release];
+        return ;
+    }
+    else {
+        NSLog(@"Open db Success");
+    }
+}
+
+- (BOOL)createTable
+{
+    return [db executeUpdate:@"CREATE TABLE EBr(Id text,Name text,Uid text,title text,Band text,Mail text,Tel text,VPMN text,Mobile text,Center text,Department text,Office text,Birth text,Gender text,Report text,Seat text,Favorite text, Photostamp text, chatRegistered text)"];
+}
+
+- (int)getPhotostamp:(NSString *)uid
+{
+    return [[db stringForQuery:@"SELECT Photostamp FROM EBr WHERE Uid = ?",uid] intValue];
+}
+
+- (void)setPhotostamp:(int) stamp forContact:(NSString *)uid
+{
+    [db executeUpdate:@"UPDATE EBr SET Photostamp = ? WHERE Uid = ?", [NSString stringWithFormat:@"%d", stamp], uid];
+}
+
+- (BOOL)setChatRegisteredForContact:(NSString *)uid
+{
+    return [db executeUpdate:@"UPDATE EBr SET chatRegistered = ? WHERE Uid = ?", @"1", uid];
+}
+
+- (BOOL)insertIntoTable:(EBer *)eber
+{
+    BOOL result = NO;
+    NSString *queryForExist = [db stringForQuery:@"SELECT Name FROM EBr WHERE Uid = ?",eber.uid];
+    if(queryForExist == nil)
+    {
+        result = [db executeUpdate:@"INSERT INTO EBr(Id, Name, Uid, title, Band, Mail, Tel, VPMN, Mobile, Center, Department, Office, Birth, Gender, Report, Seat, Favorite, Photostamp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", eber.id, eber.name, eber.uid, eber.title, eber.band, eber.mail, eber.tel, eber.vpmn, eber.mobile, eber.center, eber.department, eber.office, eber.birthdate, eber.gender, eber.report, eber.seat,@"0", [NSString stringWithFormat:@"%d", eber.photostamp]];
+    }
+    else {
+        if([eber.report isEqualToString:@"delete"])
+            result = [db executeUpdate:@"DELETE FROM EBr WHERE Uid = ?", eber.uid];
+        else
+            result = [db executeUpdate:@"UPDATE EBr SET title = ?, Band = ?, Tel = ?, VPMN = ?, Mobile = ?, Center = ?, Department = ?, Office = ?, Report = ?,  Seat = ?, Photostamp = ? WHERE Uid = ?", eber.title, eber.band, eber.tel, eber.vpmn, eber.mobile, eber.center, eber.department, eber.office, eber.report, eber.seat, [NSString stringWithFormat:@"%d", eber.photostamp], eber.uid];
+    }
+    return result;
+}
+
+- (void)closeDB
+{
+    NSLog(@"close db");
+    [db close];
+}
+
+- (BOOL)updateFavoriteStatusForContact:(NSString *)contactUid withInt:(NSString *)status
+{
+    BOOL result = NO;
+    result = [db executeUpdate:@"UPDATE EBr SET Favorite = ? WHERE Uid = ?", status,contactUid];
+    return result;
+}
+
+- (NSArray *)queryFromTableForKey:(NSString *)key withValue:(NSString *)value
+{
+    NSMutableArray *arrayFromTable = [NSMutableArray array];
+    FMResultSet *rs;
+    if(key == nil)
+        rs =[db executeQuery:@"SELECT * FROM EBr ORDER BY Uid"];
+    else {
+        NSString *sql = [NSString stringWithFormat:@"SELECT * FROM EBr WHERE %@ = ? ORDER BY Uid", key];
+        rs=[db executeQuery:sql, value];
+    }
+    while ([rs next]){
+        EBBookContact *ebcontact = [[EBBookContact alloc] init];
+        ebcontact.salaryId = [rs stringForColumn:@"Id"];
+        ebcontact.name = [rs stringForColumn:@"Name"];
+        ebcontact.uid = [rs stringForColumn:@"Uid"];
+        ebcontact.title = [rs stringForColumn:@"title"];
+        ebcontact.band = [rs stringForColumn:@"Band"];
+        ebcontact.mail = [rs stringForColumn:@"Mail"];
+        ebcontact.tel = [rs stringForColumn:@"Tel"];
+        ebcontact.vpmn = [rs stringForColumn:@"VPMN"];
+        ebcontact.mobile = [rs stringForColumn:@"Mobile"];
+        ebcontact.center = [rs stringForColumn:@"Center"];
+        ebcontact.department = [rs stringForColumn:@"Department"];
+        ebcontact.office = [rs stringForColumn:@"Office"];
+        ebcontact.birthdate = [rs stringForColumn:@"Birth"];
+        ebcontact.gender = [rs stringForColumn:@"Gender"];
+        ebcontact.report = [rs stringForColumn:@"Report"];
+        //ebcontact.newReport = [rs stringForColumn:@"Newreport"];
+        ebcontact.seat = [rs stringForColumn:@"Seat"];
+        ebcontact.isFavorite = [rs stringForColumn:@"Favorite"];
+        ebcontact.hasRegisteredForChat = [[rs stringForColumn:@"chatRegistered"] boolValue];
+        [arrayFromTable addObject:ebcontact];
+        [ebcontact release];
+    } 
+    [rs close];
+    return  arrayFromTable;
+}
+
+- (EBBookContact *)getEBerFromTableForValue:(NSString *)value
+{
+    FMResultSet *rs;
+    NSString *sql = [NSString stringWithFormat:@"SELECT * FROM EBr WHERE Uid = ? ORDER BY Uid"];
+    rs=[db executeQuery:sql, value];
+    EBBookContact *ebcontact = [[EBBookContact alloc] init];
+    if ([rs next]) {
+        ebcontact.salaryId = [rs stringForColumn:@"Id"];
+        ebcontact.name = [rs stringForColumn:@"Name"];
+        ebcontact.uid = [rs stringForColumn:@"Uid"];
+        ebcontact.title = [rs stringForColumn:@"title"];
+        ebcontact.band = [rs stringForColumn:@"Band"];
+        ebcontact.mail = [rs stringForColumn:@"Mail"];
+        ebcontact.tel = [rs stringForColumn:@"Tel"];
+        ebcontact.vpmn = [rs stringForColumn:@"VPMN"];
+        ebcontact.mobile = [rs stringForColumn:@"Mobile"];
+        ebcontact.center = [rs stringForColumn:@"Center"];
+        ebcontact.department = [rs stringForColumn:@"Department"];
+        ebcontact.office = [rs stringForColumn:@"Office"];
+        ebcontact.birthdate = [rs stringForColumn:@"Birth"];
+        ebcontact.gender = [rs stringForColumn:@"Gender"];
+        ebcontact.report = [rs stringForColumn:@"Report"];
+        //ebcontact.newReport = [rs stringForColumn:@"Newreport"];
+        ebcontact.seat = [rs stringForColumn:@"Seat"];
+        ebcontact.isFavorite = [rs stringForColumn:@"Favorite"];
+        ebcontact.hasRegisteredForChat = [[rs stringForColumn:@"chatRegistered"] boolValue];
+        [rs close];
+        return  [ebcontact autorelease];
+    }
+    else{
+        [rs close];
+        [ebcontact release];
+        return  nil;
+    }
+
+}
+
+@end
